@@ -99,20 +99,19 @@ def format_node_list(lst, indent=0, newline=False):
 
 	# we'll collect the formatted items into a Python list
 	tlist = []
-	item = lst['head']
+	item = lst['elements']
+	nitems = lst['length']
+	tlist.append("List (length = " + str(nitems) + ")")
 
 	# walk the list until we reach the last item
-	while str(item) != '0x0':
+	for i in range(nitems):
 
 		# we assume the list contains Node instances, so grab a reference
 		# and cast it to (Node*)
-		node = cast(item['data']['ptr_value'], 'Node')
+		node = cast(item[i], 'Node')
 
 		# append the formatted Node to the result list
 		tlist.append(format_node(node))
-
-		# next item
-		item = item['next']
 
 	retval = str(tlist)
 	if newline:
@@ -252,7 +251,7 @@ def format_node(node, indent=0):
 
 		node = cast(node, 'BoolExpr')
 
-		print node
+		print(node)
 
 		retval = format_bool_expr(node)
 
@@ -372,15 +371,15 @@ class PgPrintCommand(gdb.Command):
 
 		arg_list = gdb.string_to_argv(arg)
 		if len(arg_list) != 1:
-			print "usage: pgprint var"
+			print("usage: pgprint var")
 			return
 
 		l = gdb.parse_and_eval(arg_list[0])
 
 		if not is_node(l):
-			print "not a node type"
+			print("not a node type")
 
-		print format_node(l)
+		print(format_node(l))
 
 
 PgPrintCommand()
