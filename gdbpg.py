@@ -149,7 +149,11 @@ def format_node(node, indent=0):
 		return add_indent('(NULL)', indent)
 
 	retval = '';
-	type_str = str(node['type'])
+	try:
+		type_str = str(node['type'])
+	except:
+		path = cast(node, 'Path')
+		type_str = str(path['type'])
 
 	if is_a(node, 'TargetEntry'):
 
@@ -255,6 +259,18 @@ def format_node(node, indent=0):
 
 		retval = format_bool_expr(node)
 
+	elif is_a(node, 'AggPath'):
+		node = cast(node, 'AggPath')
+		retval = format_aggpath(node, 1)
+
+	elif is_a(node, 'HashPath'):
+		node = cast(node, 'HashPath')
+		retval = format_hashpath(node, 1)
+
+	elif is_a(node, 'ForeignPath'):
+		node = cast(node, 'ForeignPath')
+		retval = format_ForeignPath(node, 1)
+
 	else:
 		# default - just print the type name
 		retval = format_type(type_str)
@@ -292,8 +308,7 @@ def format_planned_stmt(plan, indent=0):
   row security: %(row_security)s
                
      plan tree: %(tree)s
-   range table:
-%(rtable)s
+   range table: %(rtable)s
  relation OIDs: %(relation_oids)s
    result rels: %(result_rels)s
   utility stmt: %(util_stmt)s
@@ -328,23 +343,74 @@ def format_bool_expr(node, indent=0):
 %(clauses)s""" % {	'op' : node['boolop'],
 					'clauses' : format_node_list(node['args'], 1, True)}
 
+def format_aggpath(node, indent=0):
+	retval =  """AggPath [aggstrategy=%(strategy)s, aggsplit=%(aggsplit)s] qual:
+	%(qual)s
+	subpath:
+	%(subpath)s""" % {
+		'strategy' : node['aggstrategy'],
+		'aggsplit' : node['aggsplit'],
+		'qual' : format_node_list(node['qual'], 1, True),
+		'subpath' : format_node(node['subpath'])}
+	return add_indent(retval, indent)
+
+def format_hashpath(node, indent=0):
+	jpath = cast(node, 'JoinPath')
+
+	return """HashPath [num_batches=%(nb)s, inner_rows_total=%(irt)s, jointype=%(jt)s, inner_unique=%(iu)s] path_hashclauses:
+	%(hc)s
+	outerjoinpath:
+	%(ojp)s
+	innerjoinpath:
+	%(ijp)s""" % {
+		'nb' : node['num_batches'],
+		'irt' : node['inner_rows_total'],
+		'jt' : jpath['jointype'],
+		'iu' : jpath['inner_unique'],
+		'hc' : format_node_list(node['path_hashclauses'], 1, True),
+		'ojp' : format_node(jpath['outerjoinpath']),
+		'ijp' : format_node(jpath['innerjoinpath'])
+		}
+
+def format_ForeignPath(node, indent=0):
+	fpath = cast(node, 'ForeignPath')
+
+	return """ForeignPath
+		%(fdwp)s""" % {
+		'fdwp' : format_node(fpath['fdw_outerpath'], 1)
+	}
+
+def node_type(node):
+	ntype=""
+
+	try:
+		ntype = node['type']
+	except:
+		try:
+			path = node['path']
+		except:
+			return ""
+		path = cast(node, 'Path')
+		ntype = path['type']
+	return ntype
+
 def is_a(n, t):
 	'''checks that the node has type 't' (just like IsA() macro)'''
 
 	if not is_node(n):
 		return False
 
-	return (str(n['type']) == ('T_' + t))
+	return (str(node_type(n)) == ('T_' + t))
 
 
 def is_node(l):
 	'''return True if the value looks like a Node (has 'type' field)'''
 
-	try:
-		x = l['type']
-		return True
-	except:
+	ntype = str(node_type(l))
+
+	if ntype == "":
 		return False
+	return True
 
 def cast(node, type_name):
 	'''wrap the gdb cast to proper node type'''
