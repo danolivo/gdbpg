@@ -266,6 +266,9 @@ def format_node(node, indent=0):
 	elif is_a(node, 'HashPath'):
 		node = cast(node, 'HashPath')
 		retval = format_hashpath(node, 1)
+	elif is_a(node, 'NestPath'):
+		node = cast(node, 'NestPath')
+		retval = format_nestpath(node, 1)
 
 	elif is_a(node, 'ForeignPath'):
 		node = cast(node, 'ForeignPath')
@@ -372,12 +375,31 @@ def format_hashpath(node, indent=0):
 		'ijp' : format_node(jpath['innerjoinpath'])
 		}
 
+def format_nestpath(node, indent=0):
+	jpath = cast(node, 'JoinPath')
+
+	return """NestPath [jointype=%(jt)s, inner_unique=%(iu)s] joinrestrictinfo:
+	%(jri)s
+	outerjoinpath:
+	%(ojp)s
+	innerjoinpath:
+	%(ijp)s""" % {
+		'jt' : jpath['jointype'],
+		'iu' : jpath['inner_unique'],
+		'jri' : format_node_list(node['joinrestrictinfo'], 1, True),
+		'ojp' : format_node(jpath['outerjoinpath']),
+		'ijp' : format_node(jpath['innerjoinpath'])
+		}
+
 def format_ForeignPath(node, indent=0):
 	fpath = cast(node, 'ForeignPath')
 
 	return """ForeignPath
-		%(fdwp)s""" % {
-		'fdwp' : format_node(fpath['fdw_outerpath'], 1)
+		%(fdwp)s
+		fdw_private:
+		%(fp)s""" % {
+		'fdwp' : format_node(fpath['fdw_outerpath'], 1),
+		'fp' : format_node_list(node['fdw_private'], 1, True),
 	}
 
 def node_type(node):
